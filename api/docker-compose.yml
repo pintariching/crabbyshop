@@ -1,0 +1,40 @@
+services:
+  db:
+    container_name: crabbyshop-db
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: crabby
+      POSTGRES_PASSWORD: crabby
+    volumes:
+      - ~/.docker-data/crabbyshop-db:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+  
+  keycloak-db:
+    container_name: crabbyshop-keycloak-db
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: crabby-keycloak
+      POSTGRES_PASSWORD: crabby-keycloak
+    volumes:
+      - ~/.docker-data/crabbyshop-keycloak-db:/var/lib/postgresql/data
+  
+  keycloak:
+    container_name: crabbyshop-keycloak
+    image: jboss/keycloak
+    environment:
+      DB_VENDOR: POSTGRES
+      DB_ADDR: keycloak-db
+      DB_DATABASE: keycloak
+      DB_USER: crabby-keycloak
+      DB_SCHEMA: public
+      DB_PASSWORD: crabby-keycloak
+      KEYCLOAK_USER: admin
+      KEYCLOAK_PASSWORD: pa55word
+    ports:
+      - 8080:8080
+    depends_on:
+      - keycloak-db
