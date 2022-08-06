@@ -1,11 +1,11 @@
 use sqlx::types::Decimal;
 use validator::ValidationError;
 
-pub mod product;
-pub mod category;
+// pub mod product;
+// pub mod category;
 pub mod discount;
-pub mod product_inventory;
-pub mod authentication;
+// pub mod product_inventory;
+// pub mod authentication;
 
 const MIN_I64_CONST: i64 = 0;
 const MAX_I64_CONST: i64 = i64::MAX;
@@ -18,9 +18,9 @@ const I32_ERROR: &str = "field contains invalid value - min: 0, max: 2147483647"
 const REQUIRED: &str = "this field is required";
 
 fn validate_decimal(value: &Decimal) -> Result<(), ValidationError> {
-	if *value < Decimal::ZERO {
-		return Err(ValidationError::new("range"))
-	}
+    if *value < Decimal::ZERO {
+        return Err(ValidationError::new("range"));
+    }
 
-	Ok(())
+    Ok(())
 }

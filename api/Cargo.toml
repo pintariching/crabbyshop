@@ -6,15 +6,15 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rocket = { git = "https://github.com/pintariching/Rocket", branch = "master", default-features = false, features = [ "json" ] }
-rocket_db_pools = { git = "https://github.com/pintariching/Rocket", branch = "master", features = [ "sqlx_postgres" ]}
+axum = { version = "0.5.13" }
+tokio = { version = "1.20.1", features = ["full"] }
 
-sqlx = { version = "0.6.0", features = [ "runtime-tokio-rustls", "postgres", "macros", "migrate", "decimal", "chrono" ]}
-chrono = { version = "0.4.19", features = ["serde"] }
-validator = { git = "https://github.com/pintariching/validator", branch = "accept-const-variable-in-message", features = ["derive"] }
+sqlx = { version = "0.6.1", features = [ "runtime-tokio-rustls", "postgres", "macros", "migrate", "decimal", "chrono" ]}
+chrono = { version = "0.4.20", features = ["serde"] }
+validator = { version = "0.16.0", features = ["derive"] }
 
 dotenv = "0.15.0"
-serde = "1.0.139"
+serde = "1.0.142"
 
 jsonwebtoken = "8.1.1"
 argon2 = "0.4.1"

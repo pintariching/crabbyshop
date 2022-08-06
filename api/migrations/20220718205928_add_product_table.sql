@@ -5,7 +5,7 @@ CREATE TABLE product (
 	sku varchar(128) UNIQUE,
 	category_id bigint,
 	inventory_id bigint,
-	price decimal,
+	price decimal(5, 2),
 	discount_id bigint,
 	created_at timestamp NOT NULL DEFAULT NOW(),
 	updated_at timestamp NOT NULL DEFAULT NOW()

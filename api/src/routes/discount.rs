@@ -1,107 +1,85 @@
-use rocket::http::Status;
-use rocket::response::status::Created;
-use rocket::serde::json::Json;
-use rocket_db_pools::Connection;
+use axum::extract::Path;
+use axum::http::StatusCode;
+use axum::response::IntoResponse;
+use axum::routing::get;
+use axum::{Extension, Json, Router};
+use sqlx::PgPool;
 use validator::Validate;
 
-use crate::db::Db;
 use crate::errors::ApiError;
-use crate::models::authentication::JwtToken;
-use crate::models::discount::{
-	Discount,
-	DiscountInsert,
-	DiscountUpdate
-};
+use crate::models::discount::{Discount, DiscountInsert, DiscountUpdate};
 
-#[get("/discount")]
-pub async fn fetch_all(
-	db: Connection<Db>,
-	token: Result<JwtToken, String>
-) -> Result<Json<Vec<Discount>>, (Status, Json<ApiError>)> {
-	Discount::find_all(db)
-		.await
-		.map(Json)
-		.map_err(|e| ApiError::internal_server_error(&e))
+pub fn get_routes() -> Router {
+    Router::new()
+        .route("/discount", get(fetch_all).post(create))
+        .route("/discount/:id", get(fetch_one).patch(update).delete(delete))
+        .route("/discount/:id/set-active", get(set_active))
+        .route("/discount/:id/set-inactive", get(set_inactive))
 }
 
-#[get("/discount/<id>")]
-pub async fn fetch_one(
-	db: Connection<Db>,
-	id: i64
-) -> Result<Json<Discount>, (Status, Json<ApiError>)> {
-	Discount::find_by_id(id, db)
-		.await
-		.map(Json)
-		.map_err(|e| ApiError::internal_server_error(&e))
+async fn fetch_all(Extension(pool): Extension<PgPool>) -> impl IntoResponse {
+    Discount::find_all(&pool)
+        .await
+        .map(|r| (StatusCode::OK, Json(r)))
+        .map_err(|e| ApiError::internal_server_error(&e))
 }
 
-
-#[post("/discount", format = "json", data = "<discount>")]
-pub async fn create(
-	db: Connection<Db>,
-	discount: Json<DiscountInsert>,
-	token: Result<JwtToken, String>
-) -> Result<Created<Json<Discount>>, (Status, Json<ApiError>)> {
-	if let Err(e) = discount.validate() {
-		return Err(ApiError::validation_error(e))
-	}
-
-	match token {
-		Ok(t) => if !t.is_admin() { return Err(ApiError::bad_request("user is not an admin"))},
-    	Err(e) => return Err(ApiError::bad_request(&e)),
-	}
-
-	Discount::create(discount.into_inner(), db)
-		.await
-		.map(|response| Created::new(format!("/discount/{}", response.id)).body(Json(response)))
-		.map_err(|e| ApiError::internal_server_error(&e))
+async fn fetch_one(Extension(pool): Extension<PgPool>, Path(id): Path<i64>) -> impl IntoResponse {
+    Discount::find_by_id(id, &pool)
+        .await
+        .map(|r| (StatusCode::OK, Json(r)))
+        .map_err(|e| ApiError::internal_server_error(&e))
 }
 
-#[get("/discount/<id>/set-active")]
-pub async fn set_active(
-	db: Connection<Db>,
-	id: i64
-) -> Result<Json<u64>, (Status, Json<ApiError>)> {
-	Discount::set_active(id, db)
-		.await
-		.map(Json)
-		.map_err(|e| ApiError::internal_server_error(&e))
+async fn create(
+    Extension(pool): Extension<PgPool>,
+    Json(discount): Json<DiscountInsert>,
+) -> impl IntoResponse {
+    if let Err(e) = discount.validate() {
+        return Err(ApiError::validation_error(e));
+    }
+
+    Discount::create(discount, &pool)
+        .await
+        .map(|r| (StatusCode::CREATED, Json(r)))
+        .map_err(|e| ApiError::internal_server_error(&e))
 }
 
-#[get("/discount/<id>/set-inactive")]
-pub async fn set_inactive(
-	db: Connection<Db>,
-	id: i64
-) -> Result<Json<u64>, (Status, Json<ApiError>)> {
-	Discount::set_inactive(id, db)
-		.await
-		.map(Json)
-		.map_err(|e| ApiError::internal_server_error(&e))
+async fn set_active(Extension(pool): Extension<PgPool>, Path(id): Path<i64>) -> impl IntoResponse {
+    Discount::set_active(id, &pool)
+        .await
+        .map(|r| (StatusCode::OK, Json(r)))
+        .map_err(|e| ApiError::internal_server_error(&e))
 }
 
-#[patch("/discount/<id>", format = "json", data = "<discount>")]
-pub async fn update(
-	db: Connection<Db>,
-	id: i64,
-	discount: Json<DiscountUpdate>
-) -> Result<Json<Discount>, (Status, Json<ApiError>)> {
-	if let Err(e) = discount.validate() {
-		return Err(ApiError::validation_error(e))
-	}
-
-	Discount::update(id, discount.into_inner(), db)
-		.await
-		.map(Json)
-		.map_err(|e| ApiError::internal_server_error(&e))
+async fn set_inactive(
+    Extension(pool): Extension<PgPool>,
+    Path(id): Path<i64>,
+) -> impl IntoResponse {
+    Discount::set_inactive(id, &pool)
+        .await
+        .map(|r| (StatusCode::OK, Json(r)))
+        .map_err(|e| ApiError::internal_server_error(&e))
 }
 
-#[delete("/discount/<id>")]
-pub async fn delete(
-	db: Connection<Db>,
-	id: i64
-) -> Result<Json<u64>, (Status, Json<ApiError>)> {
-	Discount::delete(id, db)
-		.await
-		.map(Json)
-		.map_err(|e| ApiError::internal_server_error(&e))
+async fn update(
+    Extension(pool): Extension<PgPool>,
+    Path(id): Path<i64>,
+    Json(discount): Json<DiscountUpdate>,
+) -> impl IntoResponse {
+    if let Err(e) = discount.validate() {
+        return Err(ApiError::validation_error(e));
+    }
+
+    Discount::update(id, discount, &pool)
+        .await
+        .map(|r| (StatusCode::ACCEPTED, Json(r)))
+        .map_err(|e| ApiError::internal_server_error(&e))
+}
+
+async fn delete(Extension(pool): Extension<PgPool>, Path(id): Path<i64>) -> impl IntoResponse {
+    Discount::delete(id, &pool)
+        .await
+        .map(|r| (StatusCode::NO_CONTENT, Json(r)))
+        .map_err(|e| ApiError::internal_server_error(&e))
 }
