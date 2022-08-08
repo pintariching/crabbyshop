@@ -1,95 +1,66 @@
-use rocket::http::Status;
-use rocket::response::status::Created;
-use rocket::serde::json::Json;
-use rocket_db_pools::Connection;
+use axum::extract::Path;
+use axum::http::StatusCode;
+use axum::response::IntoResponse;
+use axum::routing::get;
+use axum::{Extension, Json, Router};
+use sqlx::PgPool;
 use validator::Validate;
 
-use crate::db::Db;
 use crate::errors::ApiError;
-use crate::models::category::{
-	Category,
-	CategoryInsert,
-	CategoryUpdate, 
-	CategorySorted
-};
+use crate::models::category::{Category, CategoryInsert, CategoryUpdate};
 
-#[get("/category")]
-pub async fn fetch_all(
-	db: Connection<Db>
-) -> Result<Json<Vec<CategorySorted>>, (Status, Json<ApiError>)> {
-	let categories = match Category::find_all(db)
-		.await
-		.map_err(|e| ApiError::internal_server_error(&e)) {
-		Ok(c) => c,
-		Err(e) => return Err(e),
-	};
-
-	match CategorySorted::from_categories(categories) {
-		Some(c) => Ok(Json(c)),
-		None => Err(ApiError::internal_server_error("unable to sort categories")),
-	}
+pub fn get_routes() -> Router {
+    Router::new()
+        .route("/category", get(fetch_all).post(create))
+        .route("/category/:id", get(fetch_one).patch(update).delete(delete))
 }
 
-#[get("/category/<id>")]
-pub async fn fetch_one(
-	db: Connection<Db>,
-	id: i64
-) -> Result<Json<Vec<CategorySorted>>, (Status, Json<ApiError>)> {
-	let categories = match Category::find_by_id(id, db)
-		.await
-		.map_err(|e| ApiError::internal_server_error(&e)) {
-		Ok(c) => if c.len() > 0 {
-			c
-		} else {
-			return Err(ApiError::not_found(format!("value with id: {} not found", id).as_str()))
-		},
-		Err(e) => return Err(e),
-	};
-
-	match CategorySorted::from_categories(categories) {
-		Some(c) => Ok(Json(c)),
-		None => Err(ApiError::internal_server_error("unable to sort categories")),
-	}
+async fn fetch_all(Extension(pool): Extension<PgPool>) -> impl IntoResponse {
+    Category::find_all(&pool)
+        .await
+        .map(|r| (StatusCode::OK, Json(r)))
+        .map_err(|e| ApiError::internal_server_error(&e))
 }
 
-#[post("/category", format = "json", data = "<category>")]
-pub async fn create(
-	db: Connection<Db>,
-	category: Json<CategoryInsert>
-) -> Result<Created<Json<Category>>, (Status, Json<ApiError>)> {
-	if let Err(e) = category.validate() {
-		return Err(ApiError::validation_error(e))
-	}
-
-	Category::create(category.into_inner(), db)
-		.await
-		.map(|response| Created::new(format!("/category/{}", response.id)).body(Json(response)))
-		.map_err(|e| ApiError::internal_server_error(&e))
+async fn fetch_one(Extension(pool): Extension<PgPool>, Path(id): Path<i64>) -> impl IntoResponse {
+    Category::find_by_id(id, &pool)
+        .await
+        .map(|r| (StatusCode::OK, Json(r)))
+        .map_err(|e| ApiError::internal_server_error(&e))
 }
 
-#[patch("/category/<id>", format = "json", data = "<category>")]
-pub async fn update(
-	db: Connection<Db>,
-	id: i64,
-	category: Json<CategoryUpdate>
-) -> Result<Json<Category>, (Status, Json<ApiError>)> {
-	if let Err(e) = category.validate() {
-		return Err(ApiError::validation_error(e))
-	}
+async fn create(
+    Extension(pool): Extension<PgPool>,
+    Json(category): Json<CategoryInsert>,
+) -> impl IntoResponse {
+    if let Err(e) = category.validate() {
+        return Err(ApiError::validation_error(e));
+    }
 
-	Category::update(id, category.into_inner(), db)
-		.await
-		.map(Json)
-		.map_err(|e| ApiError::internal_server_error(&e))
+    Category::create(category, &pool)
+        .await
+        .map(|r| (StatusCode::CREATED, Json(r)))
+        .map_err(|e| ApiError::internal_server_error(&e))
 }
 
-#[delete("/category/<id>")]
-pub async fn delete(
-	db: Connection<Db>,
-	id: i64
-) -> Result<Json<u64>, (Status, Json<ApiError>)> {
-	Category::delete(id, db)
-		.await
-		.map(Json)
-		.map_err(|e| ApiError::internal_server_error(&e))
+async fn update(
+    Extension(pool): Extension<PgPool>,
+    Path(id): Path<i64>,
+    Json(category): Json<CategoryUpdate>,
+) -> impl IntoResponse {
+    if let Err(e) = category.validate() {
+        return Err(ApiError::validation_error(e));
+    }
+
+    Category::update(id, category, &pool)
+        .await
+        .map(|r| (StatusCode::ACCEPTED, Json(r)))
+        .map_err(|e| ApiError::internal_server_error(&e))
+}
+
+async fn delete(Extension(pool): Extension<PgPool>, Path(id): Path<i64>) -> impl IntoResponse {
+    Category::delete(id, &pool)
+        .await
+        .map(|r| (StatusCode::NO_CONTENT, Json(r)))
+        .map_err(|e| ApiError::internal_server_error(&e))
 }

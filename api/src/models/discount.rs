@@ -3,8 +3,6 @@ use serde::{Deserialize, Serialize};
 use sqlx::{types::Decimal, FromRow, PgPool};
 use validator::Validate;
 
-use super::validate_decimal;
-
 #[derive(Serialize, FromRow)]
 pub struct Discount {
     pub id: i64,
@@ -27,7 +25,6 @@ pub struct DiscountInsert {
     #[validate(length(max = 128))]
     description: Option<String>,
 
-    #[validate(custom(function = "validate_decimal", message = "CONST:I64_ERROR"))]
     discount_percent: Option<Decimal>,
 
     #[serde(default)]
@@ -42,10 +39,6 @@ pub struct DiscountUpdate {
     #[validate(length(max = 500, message = "field contains too many characters - max: 500"))]
     description: Option<String>,
 
-    #[validate(custom(
-        function = "validate_decimal",
-        message = "field contains invalid value - min: 0, max: i64"
-    ))]
     discount_percent: Option<Decimal>,
 
     active: Option<bool>,
