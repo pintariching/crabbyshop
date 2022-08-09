@@ -1,9 +1,10 @@
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
-use sqlx::{types::Decimal, FromRow, PgPool};
+use sqlx::types::Decimal;
+use sqlx::PgPool;
 use validator::Validate;
 
-#[derive(Serialize, FromRow)]
+#[derive(Serialize, Deserialize)]
 pub struct Discount {
     pub id: i64,
     pub name: String,

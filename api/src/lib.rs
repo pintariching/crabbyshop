@@ -1,10 +1,11 @@
 use axum::{Extension, Router};
 use dotenv::dotenv;
-use routes::{category, discount};
 use sqlx::postgres::PgPoolOptions;
 use std::time::Duration;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+use routes::{category, discount, product, product_inventory};
 
 //mod auth;
 mod errors;
@@ -34,7 +35,9 @@ pub async fn create_app() -> Router {
 
     let routes = Router::new()
         .merge(discount::get_routes())
-        .merge(category::get_routes());
+        .merge(category::get_routes())
+        .merge(product_inventory::get_routes())
+        .merge(product::get_routes());
 
     Router::new()
         .nest("/api/v1", routes)

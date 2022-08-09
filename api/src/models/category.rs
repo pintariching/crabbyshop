@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, PgPool};
+use sqlx::PgPool;
 use validator::Validate;
 
-#[derive(Serialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Category {
     pub id: i64,
     pub name: String,
@@ -10,7 +10,7 @@ pub struct Category {
     pub children: Vec<Category>,
 }
 
-#[derive(FromRow, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct CategoryDb {
     pub id: i64,
     pub name: String,
